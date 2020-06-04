@@ -10,4 +10,8 @@ resource "aws_lambda_function" "this" {
   filename         = var.filename
   source_code_hash = var.source_code_hash
   tags             = var.tags
+
+  environment {
+    variables = var.environment_variables
+  }
 }

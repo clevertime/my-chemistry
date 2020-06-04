@@ -15,3 +15,12 @@ variable "prefix" {
 variable "zone_id" {
   description = "route 53 zone id"
 }
+
+# define api functions
+variable "api_functions" {
+  type = map(object({
+    memory  = number
+    timeout = number
+    handler = string
+  }))
+}

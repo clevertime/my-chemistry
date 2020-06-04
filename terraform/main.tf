@@ -82,20 +82,23 @@ resource "aws_dynamodb_table" "records" {
 ###############
 
 data "archive_file" "lambda" {
+  for_each    = var.api_functions
   type        = "zip"
-  source_dir  = "${path.module}/api/${join("-", [var.prefix, "post"])}/"
-  output_path = "${path.module}/api/${join("-", [var.prefix, "post"])}.zip"
+  source_dir  = "${path.module}/api/${join("-", [var.prefix, each.key])}/"
+  output_path = "${path.module}/api/${join("-", [var.prefix, each.key])}.zip"
 }
 
-module "post_lambda" {
-  source           = "./modules/lambda"
-  role_arn         = aws_iam_role.lambda.arn
-  function_name    = join("-", [var.prefix, "post"])
-  memory           = 256
-  timeout          = 60
-  filename         = data.archive_file.lambda.output_path
-  source_code_hash = data.archive_file.lambda.output_base64sha256
-  handler          = join(".", [join("-", [var.prefix, "post"]), "handler"])
+module "lambdas" {
+  for_each              = var.api_functions
+  source                = "./modules/lambda"
+  role_arn              = aws_iam_role.lambda.arn
+  function_name         = join("-", [var.prefix, each.key])
+  memory                = each.value.memory
+  timeout               = each.value.timeout
+  filename              = data.archive_file.lambda[each.key].output_path
+  source_code_hash      = data.archive_file.lambda[each.key].output_base64sha256
+  handler               = join(".", [join("-", [var.prefix, each.key]), each.value.handler])
+  environment_variables = { "TABLE_NAME" = aws_dynamodb_table.records.name }
 }
 
 # lambda iam role

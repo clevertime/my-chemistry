@@ -38,3 +38,7 @@ variable "handler" {
 variable "filename" {}
 
 variable "source_code_hash" {}
+
+variable "environment_variables" {
+  type = map
+}
