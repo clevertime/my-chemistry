@@ -63,7 +63,7 @@ resource "aws_dynamodb_table" "records" {
 
   attribute {
     name = "timestamp"
-    type = "S"
+    type = "N"
   }
 
   server_side_encryption {

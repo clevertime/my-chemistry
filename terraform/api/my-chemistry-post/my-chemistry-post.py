@@ -2,32 +2,33 @@ import boto3
 import json
 import logging
 import os
+import time
+from decimal import Decimal
 
 # globals
 dynamodb = boto3.resource('dynamodb')
 
 # create record in dynamo
 def create_record(table, data):
+    
     logging.info("[*] posting record to dynamo: " + table)
-    try:
-        dynamo_table = dynamodb.Table(table)
-        dynamo_table.put_item(
-            Item={
-                'timestamp': "test"
-            }
-        )
-    except:
-        logging.error("\n[!] dynamodb table: " + table + " not found")
+    transformed_data = json.loads(json.dumps(data), parse_float=Decimal)
+    dynamo_table = dynamodb.Table(table)
+    response = dynamo_table.put_item(
+        Item=transformed_data
+    )
 
-def get_timestamp()
+def get_timestamp():
+    return time.time()
 
 def handler (event, context):
 
+    # get data
 	data = event['data']
 
-	if data['timestamp'] is None:
-		data['timestamp'] = get_timestamp()
+    # calculate timestamp if not provided
+	if 'timestamp' not in data.keys():
+	    data['timestamp'] = get_timestamp()
 
+    # create record
 	create_record(os.environ['TABLE_NAME'], event['data'])
-
-	print(event['data'])
