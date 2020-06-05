@@ -156,6 +156,7 @@ EOF
 module "api-gateway" {
   source          = "./modules/api-gateway"
   prefix          = var.prefix
+  resource_name   = "intake"
   environment     = var.environment
   domain_name     = var.api_domain_name
   certificate_arn = aws_acm_certificate.api.arn

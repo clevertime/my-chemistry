@@ -1,4 +1,5 @@
 variable "prefix" {}
+variable "resource_name" {}
 variable "description" {
   default = ""
 }

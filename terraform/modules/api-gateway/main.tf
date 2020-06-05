@@ -7,7 +7,7 @@ resource "aws_api_gateway_rest_api" "this" {
 resource "aws_api_gateway_resource" "this" {
   rest_api_id = aws_api_gateway_rest_api.this.id
   parent_id   = aws_api_gateway_rest_api.this.root_resource_id
-  path_part   = var.prefix
+  path_part   = var.resource_name
 }
 
 resource "aws_api_gateway_method" "this" {
@@ -35,6 +35,19 @@ resource "aws_api_gateway_method_response" "response_200" {
   http_method = aws_api_gateway_method.this[each.key].http_method
   status_code = "200"
 }
+
+resource "aws_api_gateway_method_settings" "this" {
+  for_each    = var.api_methods
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = var.environment
+  method_path = join("/",[aws_api_gateway_resource.this.path_part, aws_api_gateway_method.this[each.key].http_method])
+
+  settings {
+    metrics_enabled = true
+    logging_level   = "INFO"
+  }
+}
+
 
 resource "aws_lambda_permission" "this" {
   for_each      = var.api_methods
@@ -67,4 +80,11 @@ resource "aws_route53_record" "this" {
     name                   = aws_api_gateway_domain_name.this[0].cloudfront_domain_name
     zone_id                = aws_api_gateway_domain_name.this[0].cloudfront_zone_id
   }
+}
+
+resource "aws_api_gateway_base_path_mapping" "this" {
+  count       = var.domain_name != null ? 1 : 0
+  api_id      = aws_api_gateway_rest_api.this.id
+  stage_name  = aws_api_gateway_deployment.this.stage_name
+  domain_name = aws_api_gateway_domain_name.this[0].domain_name
 }
