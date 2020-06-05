@@ -25,7 +25,7 @@ resource "aws_api_gateway_integration" "this" {
   http_method             = aws_api_gateway_method.this[each.key].http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "arn:aws:apigateway:${local.region}:lambda:path/${var.prefix}/functions/${each.value.lambda}/invocations"
+  uri                     = "arn:aws:apigateway:${local.region}:lambda:path/2015-03-31/functions/${each.value.lambda}/invocations"
 }
 
 resource "aws_api_gateway_method_response" "response_200" {
