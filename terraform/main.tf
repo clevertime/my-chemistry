@@ -152,3 +152,20 @@ resource "aws_iam_role_policy" "lambda" {
 }
 EOF
 }
+
+module "api-gateway" {
+  source      = "./modules/api-gateway"
+  prefix      = var.prefix
+  api_methods = {
+    post = {
+      lambda        = module.lambdas["post"].function_arn
+      method        = "POST"
+      authorization = "NONE"
+    },
+    get = {
+      lambda        = module.lambdas["get"].function_arn
+      method        = "GET"
+      authorization = "NONE"
+    },
+  }
+}
