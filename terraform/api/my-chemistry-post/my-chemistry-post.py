@@ -38,5 +38,5 @@ def handler(event, context):
 
     # create record
     response      = create_record(os.environ['TABLE_NAME'], data)
-    status_code   = response['ResponseMetadata']['HTTPStatusCode'])
+    status_code   = response['ResponseMetadata']['HTTPStatusCode']
     return {"statusCode": status_code, "body": json.dumps(response)}

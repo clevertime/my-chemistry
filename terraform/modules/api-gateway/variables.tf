@@ -12,3 +12,12 @@ variable "api_methods" {
     authorization = string
   }))
 }
+
+variable "domain_name" {
+  default     = null
+  description = "provide domain name for api, if applicable"
+}
+
+variable "certificate_arn" {
+  default = null
+}

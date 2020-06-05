@@ -154,9 +154,10 @@ EOF
 }
 
 module "api-gateway" {
-  source      = "./modules/api-gateway"
-  prefix      = var.prefix
-  environment = var.environment
+  source          = "./modules/api-gateway"
+  prefix          = var.prefix
+  environment     = var.environment
+
   api_methods = {
     post = {
       lambda        = module.lambdas["post"].function_arn
@@ -168,5 +169,38 @@ module "api-gateway" {
       method        = "GET"
       authorization = "NONE"
     },
+  }
+}
+
+# dns & certs
+resource "aws_acm_certificate" "api" {
+  provider          = aws.us-east
+  domain_name       = var.api_domain_name
+  validation_method = "DNS"
+}
+
+resource "aws_route53_record" "api_record_validation" {
+  name    = aws_acm_certificate.api.domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.api.domain_validation_options.0.resource_record_type
+  zone_id = var.zone_id
+  records = [aws_acm_certificate.api.domain_validation_options.0.resource_record_value]
+  ttl     = 60
+}
+
+resource "aws_acm_certificate_validation" "api" {
+  provider                = aws.us-east
+  certificate_arn         = aws_acm_certificate.api.arn
+  validation_record_fqdns = [aws_route53_record.api_record_validation.fqdn]
+}
+
+resource "aws_route53_record" "this" {
+  name    = module.api-gateway.domain_name
+  type    = "A"
+  zone_id = var.zone_id
+
+  alias {
+    evaluate_target_health = true
+    name                   = module.api-gateway.cloudfront_domain_name
+    zone_id                = module.api-gateway.cloudfront_zone_id
   }
 }

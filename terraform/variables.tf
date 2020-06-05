@@ -27,3 +27,7 @@ variable "api_functions" {
     handler = string
   }))
 }
+
+variable "api_domain_name" {
+  default = null
+}

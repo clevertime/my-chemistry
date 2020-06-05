@@ -49,3 +49,9 @@ resource "aws_api_gateway_deployment" "this" {
   rest_api_id = aws_api_gateway_rest_api.this.id
   stage_name  = var.environment
 }
+
+resource "aws_api_gateway_domain_name" "this" {
+  count           = var.domain_name != null ? 1 : 0
+  certificate_arn = var.certificate_arn
+  domain_name     = var.domain_name
+}
