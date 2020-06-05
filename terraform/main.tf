@@ -156,6 +156,7 @@ EOF
 module "api-gateway" {
   source      = "./modules/api-gateway"
   prefix      = var.prefix
+  environment = var.environment
   api_methods = {
     post = {
       lambda        = module.lambdas["post"].function_arn

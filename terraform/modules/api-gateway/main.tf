@@ -28,6 +28,14 @@ resource "aws_api_gateway_integration" "this" {
   uri                     = "arn:aws:apigateway:${local.region}:lambda:path/${var.prefix}/functions/${each.value.lambda}/invocations"
 }
 
+resource "aws_api_gateway_method_response" "response_200" {
+  for_each    = var.api_methods
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.this.id
+  http_method = aws_api_gateway_method.this[each.key].http_method
+  status_code = "200"
+}
+
 resource "aws_lambda_permission" "this" {
   for_each      = var.api_methods
   statement_id  = "AllowExecutionFromAPIGateway"
@@ -35,4 +43,9 @@ resource "aws_lambda_permission" "this" {
   function_name = each.value.lambda
   principal     = "apigateway.amazonaws.com"
   source_arn    = "arn:aws:execute-api:${local.region}:${local.account_id}:${aws_api_gateway_rest_api.this.id}/*/${aws_api_gateway_method.this[each.key].http_method}${aws_api_gateway_resource.this.path}"
+}
+
+resource "aws_api_gateway_deployment" "this" {
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  stage_name  = var.environment
 }

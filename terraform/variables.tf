@@ -9,6 +9,8 @@ variable "region" {
   default     = "us-west-2"
 }
 
+variable "environment" {}
+
 variable "prefix" {
   description = "prefix for naming resources"
   default     = "my-chemistry"
