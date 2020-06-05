@@ -17,4 +17,5 @@ terraform.tfplan
 *.zip
 *.test
 *.iml
+backend.tf
 *.tfvars

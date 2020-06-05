@@ -2,6 +2,8 @@ variable "profile" {
   description = "aws profile to use"
 }
 
+variable "state_bucket" {}
+
 variable "region" {
   description = "aws region"
   default     = "us-west-2"
