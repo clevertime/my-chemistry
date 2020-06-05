@@ -21,3 +21,7 @@ variable "domain_name" {
 variable "certificate_arn" {
   default = null
 }
+
+variable "zone_id" {
+  default = null
+}

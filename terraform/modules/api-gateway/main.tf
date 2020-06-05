@@ -55,3 +55,16 @@ resource "aws_api_gateway_domain_name" "this" {
   certificate_arn = var.certificate_arn
   domain_name     = var.domain_name
 }
+
+resource "aws_route53_record" "this" {
+  count   = var.domain_name != null ? 1 : 0
+  name    = aws_api_gateway_domain_name.this[0].domain_name
+  type    = "A"
+  zone_id = var.zone_id
+
+  alias {
+    evaluate_target_health = true
+    name                   = aws_api_gateway_domain_name.this[0].cloudfront_domain_name
+    zone_id                = aws_api_gateway_domain_name.this[0].cloudfront_zone_id
+  }
+}
