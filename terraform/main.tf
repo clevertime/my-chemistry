@@ -150,7 +150,6 @@ resource "aws_iam_role_policy" "lambda" {
             "Action": "dynamodb:*",
             "Resource": "${aws_dynamodb_table.this[var.api_resources[0]].arn}"
         },
-        ,
         {
             "Effect": "Allow",
             "Action": "dynamodb:*",
