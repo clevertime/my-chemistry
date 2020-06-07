@@ -9,6 +9,10 @@ locals {
   region     = data.aws_region.this.name
 }
 
+##################
+# frontend
+##################
+
 # s3 bucket
 resource "aws_s3_bucket" "web" {
   bucket_prefix = join("-", [var.prefix, "web-"])
@@ -23,6 +27,87 @@ resource "aws_s3_bucket" "web" {
   }
 }
 
+resource "aws_cloudfront_origin_access_identity" "this" {}
+
+resource "aws_cloudfront_distribution" "frontend" {
+
+  origin {
+    domain_name = aws_s3_bucket.web.bucket_regional_domain_name
+    origin_id   = var.frontend_domain_name
+
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.this.cloudfront_access_identity_path
+    }
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = true
+  default_root_object = "index.html"
+
+  aliases = [join("", ["console", var.api_domain_name])]
+
+  default_cache_behavior {
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = var.frontend_domain_name
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    viewer_protocol_policy = "allow-all"
+    min_ttl                = 0
+    default_ttl            = 3600
+    max_ttl                = 86400
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  price_class = "PriceClass_100"
+
+  viewer_certificate {
+    acm_certificate_arn = aws_acm_certificate.frontend.arn
+    ssl_support_method  = "sni-only"
+  }
+}
+
+# configure cloudfront access to s3
+data "aws_iam_policy_document" "s3_policy" {
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = [join("", [aws_s3_bucket.web.arn, "/*"])]
+
+    principals {
+      type        = "AWS"
+      identifiers = [aws_cloudfront_origin_access_identity.this.iam_arn]
+    }
+  }
+
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.web.arn]
+
+    principals {
+      type        = "AWS"
+      identifiers = [aws_cloudfront_origin_access_identity.this.iam_arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "web" {
+  bucket = aws_s3_bucket.web.id
+  policy = data.aws_iam_policy_document.s3_policy.json
+}
+
+
 # Upload Static Files to s3
 resource "null_resource" "cluster" {
 
@@ -36,22 +121,43 @@ resource "null_resource" "cluster" {
   ]
 }
 
-# route53
-resource "aws_route53_record" "naked" {
+# dns & certs
+resource "aws_route53_record" "frontend_alias" {
   zone_id = var.zone_id
-  name    = var.prefix
-  type    = "CNAME"
-  ttl     = "300"
-  records = [aws_s3_bucket.web.bucket_domain_name]
+  name    = var.frontend_domain_name
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.frontend.domain_name
+    zone_id                = aws_cloudfront_distribution.frontend.hosted_zone_id
+    evaluate_target_health = false
+  }
 }
 
-resource "aws_route53_record" "www" {
-  zone_id = var.zone_id
-  name    = join(".", ["www", var.prefix])
-  type    = "CNAME"
-  ttl     = "300"
-  records = [aws_s3_bucket.web.bucket_domain_name]
+resource "aws_acm_certificate" "frontend" {
+  provider          = aws.east
+  domain_name       = var.frontend_domain_name
+  validation_method = "DNS"
 }
+
+resource "aws_route53_record" "frontend_record_validation" {
+  name    = aws_acm_certificate.frontend.domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.frontend.domain_validation_options.0.resource_record_type
+  zone_id = var.zone_id
+  records = [aws_acm_certificate.frontend.domain_validation_options.0.resource_record_value]
+  ttl     = 60
+}
+
+resource "aws_acm_certificate_validation" "frontend" {
+  provider                = aws.east
+  certificate_arn         = aws_acm_certificate.frontend.arn
+  validation_record_fqdns = [aws_route53_record.frontend_record_validation.fqdn]
+}
+
+
+##################
+# backend
+##################
 
 # dynamo
 resource "aws_dynamodb_table" "this" {
@@ -75,12 +181,6 @@ resource "aws_dynamodb_table" "this" {
     Name = join("-", [var.prefix, each.key])
   }
 }
-
-
-
-###############
-# api
-###############
 
 data "archive_file" "lambda" {
   for_each    = var.api_functions

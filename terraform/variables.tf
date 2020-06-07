@@ -35,3 +35,7 @@ variable "api_functions" {
 variable "api_domain_name" {
   default = null
 }
+
+variable "frontend_domain_name" {
+  default = null
+}
