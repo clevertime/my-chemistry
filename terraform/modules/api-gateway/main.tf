@@ -5,15 +5,16 @@ resource "aws_api_gateway_rest_api" "this" {
 }
 
 resource "aws_api_gateway_resource" "this" {
+  for_each    = toset(var.resource_names)
   rest_api_id = aws_api_gateway_rest_api.this.id
   parent_id   = aws_api_gateway_rest_api.this.root_resource_id
-  path_part   = var.resource_name
+  path_part   = each.key
 }
 
 resource "aws_api_gateway_method" "this" {
   for_each      = var.api_methods
   rest_api_id   = aws_api_gateway_rest_api.this.id
-  resource_id   = aws_api_gateway_resource.this.id
+  resource_id   = aws_api_gateway_resource.this[each.value.api_resource].id
   http_method   = each.value.method
   authorization = each.value.authorization
 }
@@ -21,7 +22,7 @@ resource "aws_api_gateway_method" "this" {
 resource "aws_api_gateway_integration" "this" {
   for_each                = var.api_methods
   rest_api_id             = aws_api_gateway_rest_api.this.id
-  resource_id             = aws_api_gateway_resource.this.id
+  resource_id             = aws_api_gateway_resource.this[each.value.api_resource].id
   http_method             = aws_api_gateway_method.this[each.key].http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
@@ -31,7 +32,7 @@ resource "aws_api_gateway_integration" "this" {
 resource "aws_api_gateway_method_response" "response_200" {
   for_each    = var.api_methods
   rest_api_id = aws_api_gateway_rest_api.this.id
-  resource_id = aws_api_gateway_resource.this.id
+  resource_id = aws_api_gateway_resource.this[each.value.api_resource].id
   http_method = aws_api_gateway_method.this[each.key].http_method
   status_code = "200"
 }
@@ -40,14 +41,13 @@ resource "aws_api_gateway_method_settings" "this" {
   for_each    = var.api_methods
   rest_api_id = aws_api_gateway_rest_api.this.id
   stage_name  = var.environment
-  method_path = join("/",[aws_api_gateway_resource.this.path_part, aws_api_gateway_method.this[each.key].http_method])
+  method_path = join("/", [aws_api_gateway_resource.this[each.value.api_resource].path_part, aws_api_gateway_method.this[each.key].http_method])
 
   settings {
     metrics_enabled = true
     logging_level   = "INFO"
   }
 }
-
 
 resource "aws_lambda_permission" "this" {
   for_each      = var.api_methods

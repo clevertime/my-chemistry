@@ -1,5 +1,7 @@
 variable "prefix" {}
-variable "resource_name" {}
+variable "resource_names" {
+  type = list
+}
 variable "description" {
   default = ""
 }
@@ -11,6 +13,7 @@ variable "api_methods" {
     lambda        = string
     method        = string
     authorization = string
+    api_resource  = string
   }))
 }
 

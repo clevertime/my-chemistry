@@ -54,8 +54,9 @@ resource "aws_route53_record" "www" {
 }
 
 # dynamo
-resource "aws_dynamodb_table" "records" {
-  name           = join("-", [var.prefix, "records"])
+resource "aws_dynamodb_table" "this" {
+  for_each       = toset(var.api_resources)
+  name           = join("-", [var.prefix, each.key])
   billing_mode   = "PROVISIONED"
   read_capacity  = 5
   write_capacity = 1
@@ -71,7 +72,7 @@ resource "aws_dynamodb_table" "records" {
   }
 
   tags = {
-    Name = join("-", [var.prefix, "records"])
+    Name = join("-", [var.prefix, each.key])
   }
 }
 
@@ -98,7 +99,7 @@ module "lambdas" {
   filename              = data.archive_file.lambda[each.key].output_path
   source_code_hash      = data.archive_file.lambda[each.key].output_base64sha256
   handler               = join(".", [join("-", [var.prefix, each.key]), each.value.handler])
-  environment_variables = { "TABLE_NAME" = aws_dynamodb_table.records.name }
+  environment_variables = { "TABLE_NAME" = aws_dynamodb_table.this[each.value.api_resource].name }
 }
 
 # lambda iam role
@@ -121,6 +122,7 @@ EOF
 }
 
 # lambda iam policy
+# would like to make this dynamic
 resource "aws_iam_role_policy" "lambda" {
   name   = join("-", [var.prefix, "lambda"])
   role   = aws_iam_role.lambda.name
@@ -146,7 +148,13 @@ resource "aws_iam_role_policy" "lambda" {
         {
             "Effect": "Allow",
             "Action": "dynamodb:*",
-            "Resource": "${aws_dynamodb_table.records.arn}"
+            "Resource": "${aws_dynamodb_table.this[var.api_resources[0]].arn}"
+        },
+        ,
+        {
+            "Effect": "Allow",
+            "Action": "dynamodb:*",
+            "Resource": "${aws_dynamodb_table.this[var.api_resources[1]].arn}"
         }
     ]
 }
@@ -156,23 +164,37 @@ EOF
 module "api-gateway" {
   source          = "./modules/api-gateway"
   prefix          = var.prefix
-  resource_name   = "intake"
+  resource_names  = var.api_resources
   environment     = var.environment
   domain_name     = var.api_domain_name
   certificate_arn = aws_acm_certificate.api.arn
   zone_id         = var.zone_id
 
   api_methods = {
-    post = {
-      lambda        = module.lambdas["post"].function_arn
+    intake_post = {
+      lambda        = module.lambdas["intake_post"].function_arn
       method        = "POST"
       authorization = "NONE"
+      api_resource  = "intake"
     },
-    get = {
-      lambda        = module.lambdas["get"].function_arn
+    intake_get = {
+      lambda        = module.lambdas["intake_get"].function_arn
       method        = "GET"
       authorization = "NONE"
+      api_resource  = "intake"
     },
+    report_post = {
+      lambda        = module.lambdas["report_post"].function_arn
+      method        = "POST"
+      authorization = "NONE"
+      api_resource  = "report"
+    },
+    report_get = {
+      lambda        = module.lambdas["report_get"].function_arn
+      method        = "GET"
+      authorization = "NONE"
+      api_resource  = "report"
+    }
   }
 }
 
@@ -184,11 +206,11 @@ resource "aws_acm_certificate" "api" {
 }
 
 resource "aws_route53_record" "api_record_validation" {
-  name     = aws_acm_certificate.api.domain_validation_options.0.resource_record_name
-  type     = aws_acm_certificate.api.domain_validation_options.0.resource_record_type
-  zone_id  = var.zone_id
-  records  = [aws_acm_certificate.api.domain_validation_options.0.resource_record_value]
-  ttl      = 60
+  name    = aws_acm_certificate.api.domain_validation_options.0.resource_record_name
+  type    = aws_acm_certificate.api.domain_validation_options.0.resource_record_type
+  zone_id = var.zone_id
+  records = [aws_acm_certificate.api.domain_validation_options.0.resource_record_value]
+  ttl     = 60
 }
 
 resource "aws_acm_certificate_validation" "api" {

@@ -19,12 +19,16 @@ variable "zone_id" {
   description = "route 53 zone id"
 }
 
+variable "api_resources" {
+  type = list
+}
 # define api functions
 variable "api_functions" {
   type = map(object({
-    memory  = number
-    timeout = number
-    handler = string
+    memory       = number
+    timeout      = number
+    handler      = string
+    api_resource = string
   }))
 }
 
